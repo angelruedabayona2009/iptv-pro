@@ -32,49 +32,11 @@ def verificar(url):
         return {"estado":"ERROR","user":"?"}
 
 # ================= HOME =================
+from flask import render_template
+
 @app.route("/")
 def home():
-    return """
-    <h1>🔥 IPTV PANEL PRO</h1>
-
-    <textarea id='listas' style='width:90%;height:200px'></textarea><br><br>
-
-    <button onclick='check()'>Verificar</button>
-
-    <div id='res'></div>
-
-    <script>
-    function check(){
-        fetch('/check',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                listas:document.getElementById('listas').value
-            })
-        })
-        .then(r=>r.json())
-        .then(data=>{
-            let html="";
-            data.forEach(x=>{
-                let color = x.estado=="OK"?"lime":(x.estado=="BAD"?"red":"orange");
-                html += `<p style="color:${color}">${x.estado} | ${x.user} | ${x.canales||0}</p>`;
-            });
-            document.getElementById('res').innerHTML = html;
-        });
-    }
-    </script>
-    """
-
-# ================= API =================
-@app.route("/check", methods=["POST"])
-def check():
-    texto = request.json.get("listas","")
-    lineas = texto.split("\n")
-
-    with ThreadPoolExecutor(max_workers=MAX_THREADS) as ex:
-        results = list(ex.map(verificar, lineas))
-
-    return jsonify(results)
+    return render_template("index.html")
 
 # ================= RUN =================
 if __name__ == "__main__":
