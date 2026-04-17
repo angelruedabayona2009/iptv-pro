@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>IPTV PRO</title>
+<style>
+body{
+background:#0d0d0d;
+color:white;
+font-family:Arial;
+text-align:center;
+}
+
+textarea{
+width:90%;
+height:150px;
+background:#1a1a1a;
+color:white;
+border:1px solid #333;
+}
+
+button{
+padding:10px;
+margin:5px;
+background:#00ff88;
+border:none;
+cursor:pointer;
+}
+
+.ok{color:lime;}
+.bad{color:red;}
+.err{color:orange;}
+
+.card{
+background:#1a1a1a;
+padding:10px;
+margin:10px;
+border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🔥 IPTV PANEL PRO</h1>
+
+<textarea id="listas" placeholder="Pega listas aquí"></textarea><br>
+
+<button onclick="check()">Verificar</button>
+<button onclick="soloOK()">Solo válidas</button>
+
+<h2>Resultados</h2>
+<div id="res"></div>
+
+<h2>🔥 HIT HUNTER</h2>
+<div id="hit"></div>
+
+<script>
+let globalData=[];
+
+function check(){
+fetch("/check",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({listas:document.getElementById("listas").value})
+})
+.then(r=>r.json())
+.then(data=>{
+globalData=data;
+mostrar(data);
+});
+}
+
+function mostrar(data){
+let html="";
+data.forEach(x=>{
+let clase = x.estado=="OK"?"ok":(x.estado=="BAD"?"bad":"err");
+
+html += `
+<div class="card ${clase}">
+${x.estado} | ${x.user} | ${x.canales||0} canales
+</div>`;
+});
+document.getElementById("res").innerHTML=html;
+}
+
+function soloOK(){
+mostrar(globalData.filter(x=>x.estado=="OK"));
+}
+
+// HIT PANEL
+document.getElementById("hit").innerHTML = `
+<div class="card ok">
+👑 Usuario: ser682mun<br>
+🔐 Pass: 5w49evr21<br>
+🌐 Server: http://superlatino.online<br>
+✅ Estado: Active<br>
+📅 Exp: 24/05/2026<br>
+<a href="http://superlatino.online/get.php?username=ser682mun&password=5w49evr21&type=m3u_plus" target="_blank">📺 Ver lista</a>
+</div>
+`;
+
+</script>
+
+</body>
+</html>
