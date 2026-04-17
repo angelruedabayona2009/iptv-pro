@@ -47,7 +47,7 @@ border-radius:10px;
 
 <button onclick="check()">Verificar</button>
 <button onclick="soloOK()">Solo válidas</button>
-
+<button onclick="exportar()">Exportar válidas</button>
 <h2>Resultados</h2>
 <div id="res"></div>
 
@@ -100,6 +100,19 @@ document.getElementById("hit").innerHTML = `
 `;
 
 </script>
-
+function exportar(){
+fetch("/export",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({data:globalData})
+})
+.then(res => res.blob())
+.then(blob => {
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "iptv_validas.csv";
+a.click();
+});
+}
 </body>
 </html>
