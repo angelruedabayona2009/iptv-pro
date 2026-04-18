@@ -3,12 +3,56 @@
 <head>
 <title>IPTV PRO</title>
 <style>
+<style>
 body{
 background:#0d0d0d;
 color:white;
 font-family:Arial;
 text-align:center;
 }
+
+textarea{
+width:90%;
+height:150px;
+background:#1a1a1a;
+color:white;
+border:1px solid #333;
+}
+
+button{
+padding:10px;
+margin:5px;
+background:#00ff88;
+border:none;
+cursor:pointer;
+}
+
+.ok{color:#00ff88;}
+.bad{color:#ff4d4d;}
+.err{color:#ffaa00;}
+
+.card{
+background:#1a1a1a;
+padding:10px;
+margin:10px;
+border-radius:10px;
+border-left:5px solid #00ff88;
+text-align:left;
+}
+
+.badCard{border-left:5px solid red;}
+.errCard{border-left:5px solid orange;}
+
+.stats{
+margin:10px;
+font-size:18px;
+}
+
+.procesando{
+background:#222;
+color:yellow;
+}
+</style>
 
 textarea{
 <br><br>
@@ -51,7 +95,8 @@ border-radius:10px;
 <button onclick="check()">Verificar</button>
 <button onclick="soloOK()">Solo válidas</button>
 <button onclick="exportar()">Exportar válidas</button>
-<h2>Resultados</h2>
+<div id="stats" class="stats"></div>
+  <h2>Resultados</h2>
 <div id="res"></div>
 
 <h2>🔥 HIT HUNTER</h2>
@@ -74,16 +119,42 @@ mostrar(data);
 }
 
 function mostrar(data){
-let html="";
-data.forEach(x=>{
-let clase = x.estado=="OK"?"ok":(x.estado=="BAD"?"bad":"err");
+let ok=0, bad=0, err=0;
+let htmlOK="", htmlBAD="", htmlERR="";
 
-html += `
-<div class="card ${clase}">
-${x.estado} | ${x.user} | ${x.canales||0} canales
+data.forEach(x=>{
+
+if(x.estado=="OK"){
+ok++;
+htmlOK += `
+<div class="card ok">
+👑 USER: ${x.user}<br>
+🔐 PASS: ${x.pass}<br>
+🌐 SERVER: ${x.server}<br>
+📅 EXP: ${formatFecha(x.exp_date)}
 </div>`;
+}
+
+else if(x.estado=="BAD"){
+bad++;
+htmlBAD += `<div class="card badCard">❌ ${x.user}</div>`;
+}
+
+else{
+err++;
+htmlERR += `<div class="card errCard">⚠️ ERROR</div>`;
+}
+
 });
-document.getElementById("res").innerHTML=html;
+
+document.getElementById("stats").innerHTML =
+`✅ ${ok} | ❌ ${bad} | ⚠️ ${err}`;
+
+document.getElementById("res").innerHTML = `
+<h2>✅ VÁLIDAS</h2>${htmlOK}
+<h2>❌ INVÁLIDAS</h2>${htmlBAD}
+<h2>⚠️ ERRORES</h2>${htmlERR}
+`;
 }
 function formatFecha(timestamp){
 if(!timestamp) return "N/A";
