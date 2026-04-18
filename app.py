@@ -77,7 +77,7 @@ def home():
 @app.route("/check", methods=["POST"])
 def check():
     texto = request.json.get("listas","")
-    lineas = texto.split("\n")
+    lineas = [l.strip() for l in texto.split("\n") if "get.php" in l]
 
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as ex:
         results = list(ex.map(verificar, lineas))
