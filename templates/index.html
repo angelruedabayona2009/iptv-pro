@@ -82,9 +82,48 @@ ${x.estado} | ${x.user} | ${x.canales||0} canales
 });
 document.getElementById("res").innerHTML=html;
 }
-
+function formatFecha(timestamp){
+if(!timestamp) return "N/A";
+let d = new Date(timestamp * 1000);
+return d.toLocaleDateString();
+}
 function soloOK(){
-mostrar(globalData.filter(x=>x.estado=="OK"));
+function mostrar(data){
+let htmlOK="";
+let htmlBAD="";
+let htmlERR="";
+
+data.forEach(x=>{
+
+if(x.estado=="OK"){
+htmlOK += `
+<div class="card ok">
+👑 USER: ${x.user}<br>
+🔐 PASS: ${x.pass}<br>
+🌐 SERVER: ${x.server}<br>
+✅ STATUS: ${x.status}<br>
+📶 ACTIVE: ${x.active_cons}<br>
+📡 MAX: ${x.max_connections}<br>
+📅 EXP: ${formatFecha(x.exp_date)}<br>
+🕰️ TZ: ${x.timezone}
+</div>`;
+}
+
+else if(x.estado=="BAD"){
+htmlBAD += `<div class="card bad">❌ BAD: ${x.user}</div>`;
+}
+
+else{
+htmlERR += `<div class="card err">⚠️ ERROR: ${x.user}</div>`;
+}
+
+});
+
+document.getElementById("res").innerHTML = `
+<h2>✅ VÁLIDAS</h2>${htmlOK}
+<h2>❌ INVÁLIDAS</h2>${htmlBAD}
+<h2>⚠️ ERRORES</h2>${htmlERR}
+`;
 }
 
 // HIT PANEL
