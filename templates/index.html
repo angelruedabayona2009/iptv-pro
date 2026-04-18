@@ -11,6 +11,9 @@ text-align:center;
 }
 
 textarea{
+<br><br>
+<input type="file" id="fileInput">
+<button onclick="cargarArchivo()">Cargar TXT</button>  
 width:90%;
 height:150px;
 background:#1a1a1a;
@@ -152,6 +155,22 @@ a.href = URL.createObjectURL(blob);
 a.download = "iptv_validas.csv";
 a.click();
 });
+} 
+function cargarArchivo(){
+let file = document.getElementById("fileInput").files[0];
+
+if(!file){
+alert("Selecciona un archivo");
+return;
+}
+
+let reader = new FileReader();
+
+reader.onload = function(e){
+document.getElementById("listas").value = e.target.result;
+};
+
+reader.readAsText(file);
 }
 </body>
 </html>
