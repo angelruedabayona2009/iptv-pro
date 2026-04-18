@@ -77,7 +77,12 @@ def home():
 @app.route("/check", methods=["POST"])
 def check():
     texto = request.json.get("listas","")
-    lineas = [l.strip() for l in texto.split("\n") if "get.php" in l]
+   let lineas = document.getElementById("listas").value.split("\n");
+
+let marcado = lineas.map(l => `<div class="procesando">${l}</div>`).join("");
+
+document.getElementById("res").innerHTML = marcado;
+    lineas = list(set([l.strip() for l in texto.split("\n") if "get.php" in l]))
 
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as ex:
         results = list(ex.map(verificar, lineas))
@@ -89,15 +94,19 @@ def check():
 def export():
     data = request.json.get("data", [])
 
-    with open("validas.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["server","user","pass","canales"])
-
+    with open("hits.txt", "w", encoding="utf-8") as f:
         for x in data:
             if x["estado"] == "OK":
-                writer.writerow([x["server"], x["user"], x["pass"], x["canales"]])
+                f.write(f"""╭───✦ HIT
+├● 👑 USER : {x['user']}
+├● 🔐 PASS : {x['pass']}
+├● 🌐 SERVER : {x['server']}
+├● 📅 EXP : {x.get('exp_date')}
+╰───✦
 
-    return send_file("validas.csv", as_attachment=True)
+""")
+
+    return send_file("hits.txt", as_attachment=True)
 
 # ================= RUN =================
 if __name__ == "__main__":
