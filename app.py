@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, send_file
 import requests
 from concurrent.futures import ThreadPoolExecutor
-import csv
 
 app = Flask(__name__)
 app.secret_key = "123"
@@ -12,7 +11,7 @@ PASS = "admin123"
 MAX_THREADS = 20
 TIMEOUT = 8
 
-# ================= LOGIN =================
+# LOGIN
 @app.route("/login", methods=["GET","POST"])
 def login():
     if request.method == "POST":
@@ -29,7 +28,7 @@ def logout():
 def protegido():
     return session.get("login")
 
-# ================= VERIFICADOR =================
+# VERIFICADOR
 def verificar(url):
     try:
         base = url.split("/get.php")[0]
@@ -39,49 +38,34 @@ def verificar(url):
         api = f"{base}/player_api.php?username={user}&password={password}"
         r = requests.get(api, timeout=TIMEOUT)
 
-        if r.status_code != 200:
-            return {"estado":"ERROR"}
-
         data = r.json()
         user_info = data.get("user_info", {})
 
         if user_info.get("auth") == 1:
-
             return {
                 "estado": "OK",
                 "user": user,
                 "pass": password,
                 "server": base,
-                "status": user_info.get("status"),
-                "active_cons": user_info.get("active_cons"),
-                "max_connections": user_info.get("max_connections"),
-                "created_at": user_info.get("created_at"),
-                "exp_date": user_info.get("exp_date"),
-                "timezone": data.get("server_info", {}).get("timezone")
+                "exp_date": user_info.get("exp_date")
             }
-
         else:
             return {"estado":"BAD","user":user}
 
     except:
         return {"estado":"ERROR","user":"?"}
 
-# ================= HOME =================
+# HOME
 @app.route("/")
 def home():
     if not protegido():
         return redirect("/login")
     return render_template("index.html")
 
-# ================= CHECK =================
+# CHECK
 @app.route("/check", methods=["POST"])
 def check():
     texto = request.json.get("listas","")
-   let lineas = document.getElementById("listas").value.split("\n");
-
-let marcado = lineas.map(l => `<div class="procesando">${l}</div>`).join("");
-
-document.getElementById("res").innerHTML = marcado;
     lineas = list(set([l.strip() for l in texto.split("\n") if "get.php" in l]))
 
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as ex:
@@ -89,7 +73,7 @@ document.getElementById("res").innerHTML = marcado;
 
     return jsonify(results)
 
-# ================= EXPORT =================
+# EXPORT TXT
 @app.route("/export", methods=["POST"])
 def export():
     data = request.json.get("data", [])
@@ -97,17 +81,10 @@ def export():
     with open("hits.txt", "w", encoding="utf-8") as f:
         for x in data:
             if x["estado"] == "OK":
-                f.write(f"""╭───✦ HIT
-├● 👑 USER : {x['user']}
-├● 🔐 PASS : {x['pass']}
-├● 🌐 SERVER : {x['server']}
-├● 📅 EXP : {x.get('exp_date')}
-╰───✦
-
-""")
+                f.write(f"USER: {x['user']} | PASS: {x['pass']} | SERVER: {x['server']}\n")
 
     return send_file("hits.txt", as_attachment=True)
 
-# ================= RUN =================
+# RUN
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
