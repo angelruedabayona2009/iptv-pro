@@ -39,11 +39,27 @@ def verificar(url):
         api = f"{base}/player_api.php?username={user}&password={password}"
         r = requests.get(api, timeout=TIMEOUT)
 
-        data = r.json()
+        if r.status_code != 200:
+            return {"estado":"ERROR"}
 
-        if data.get("user_info", {}).get("auth") == 1:
-            canales = len(data.get("available_channels", []))
-            return {"estado":"OK","user":user,"pass":password,"server":base,"canales":canales}
+        data = r.json()
+        user_info = data.get("user_info", {})
+
+        if user_info.get("auth") == 1:
+
+            return {
+                "estado": "OK",
+                "user": user,
+                "pass": password,
+                "server": base,
+                "status": user_info.get("status"),
+                "active_cons": user_info.get("active_cons"),
+                "max_connections": user_info.get("max_connections"),
+                "created_at": user_info.get("created_at"),
+                "exp_date": user_info.get("exp_date"),
+                "timezone": data.get("server_info", {}).get("timezone")
+            }
+
         else:
             return {"estado":"BAD","user":user}
 
