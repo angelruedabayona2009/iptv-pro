@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, send_file
 import requests
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "123"
@@ -20,13 +21,15 @@ def login():
             return redirect("/")
     return render_template("login.html")
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
 def protegido():
     return session.get("login")
+
+# FECHA
+def format_fecha(ts):
+    try:
+        return datetime.fromtimestamp(int(ts)).strftime('%d/%m/%Y')
+    except:
+        return "N/A"
 
 # VERIFICADOR
 def verificar(url):
@@ -37,21 +40,27 @@ def verificar(url):
 
         api = f"{base}/player_api.php?username={user}&password={password}"
         r = requests.get(api, timeout=TIMEOUT)
-
         data = r.json()
-        user_info = data.get("user_info", {})
 
-        if user_info.get("auth") == 1:
+        info = data.get("user_info", {})
+        server = data.get("server_info", {})
+
+        if info.get("auth") == 1:
             return {
-                "estado": "OK",
-                "user": user,
-                "pass": password,
-                "server": base,
-                "exp_date": user_info.get("exp_date")
+                "estado":"OK",
+                "user":user,
+                "pass":password,
+                "server":base,
+                "status":info.get("status"),
+                "active":info.get("active_cons"),
+                "max":info.get("max_connections"),
+                "created":format_fecha(info.get("created_at")),
+                "exp":format_fecha(info.get("exp_date")),
+                "tz":server.get("timezone"),
+                "m3u":url
             }
         else:
             return {"estado":"BAD","user":user}
-
     except:
         return {"estado":"ERROR","user":"?"}
 
@@ -68,23 +77,32 @@ def check():
     texto = request.json.get("listas","")
     lineas = list(set([l.strip() for l in texto.split("\n") if "get.php" in l]))
 
-    with ThreadPoolExecutor(max_workers=MAX_THREADS) as ex:
-        results = list(ex.map(verificar, lineas))
+    resultados = []
+    for l in lineas:
+        resultados.append(verificar(l))
 
-    return jsonify(results)
+    return jsonify(resultados)
 
-# EXPORT TXT
+# EXPORT
 @app.route("/export", methods=["POST"])
 def export():
     data = request.json.get("data", [])
 
-    with open("hits.txt", "w", encoding="utf-8") as f:
+    with open("hits.txt","w",encoding="utf-8") as f:
         for x in data:
-            if x["estado"] == "OK":
-                f.write(f"USER: {x['user']} | PASS: {x['pass']} | SERVER: {x['server']}\n")
+            if x["estado"]=="OK":
+                f.write(f"""╭───✦ HIT
+├● 👑 USER : {x['user']}
+├● 🔐 PASS : {x['pass']}
+├● 📅 EXP : {x['exp']}
+├● 🌐 SERVER : {x['server']}
+╰───✦
+
+🌐 {x['m3u']}
+
+""")
 
     return send_file("hits.txt", as_attachment=True)
 
-# RUN
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
