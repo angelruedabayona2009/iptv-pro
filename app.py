@@ -1,177 +1,148 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, send_file
-import requests
+from flask import Flask, render_template, request, jsonify, send_file
+import requests, time
 from datetime import datetime
 from db import get_db, init_db
-from werkzeug.security import generate_password_hash, check_password_hash
+from threading import Thread
+
+# TELEGRAM
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 app = Flask(__name__)
-app.secret_key = "supersecret"
-
 init_db()
 
-# ===== CREAR ADMIN =====
-db = get_db()
-try:
-    db.execute("INSERT INTO users (username,password) VALUES (?,?)",
-               ("admin", generate_password_hash("admin123")))
-    db.commit()
-except:
-    pass
+# ===== CONFIG ANTI-BAN =====
+DELAY = 2
+MAX_SCAN = 10
 
-# ===== LOGIN =====
-@app.route("/login", methods=["GET","POST"])
-def login():
-    if request.method == "POST":
-        user = request.form["user"]
-        password = request.form["password"]
+# ⚠️ PON TU NUEVO TOKEN AQUÍ
+BOT_TOKEN = "PON_AQUI_TU_TOKEN_NUEVO"
 
-        db = get_db()
-        u = db.execute("SELECT * FROM users WHERE username=?", (user,)).fetchone()
-
-        if u and check_password_hash(u[2], password):
-            session["user"] = user
-            return redirect("/")
-
-    return render_template("login.html")
-
-# ===== LOGOUT =====
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
-def auth():
-    return "user" in session
-
-# ===== FORMATO FECHA =====
-def format_fecha(ts):
+# ===== VERIFICADOR =====
+def check_url(url):
     try:
-        return datetime.fromtimestamp(int(ts)).strftime('%d/%m/%Y')
+        start = time.time()
+        r = requests.get(url, timeout=8)
+        t = round(time.time() - start, 2)
+
+        if r.status_code == 200:
+            return "ONLINE", t
+        return "DOWN", t
     except:
-        return "N/A"
+        return "ERROR", 0
 
-# ===== VERIFICACIÓN PRO =====
-def verificar(url):
-    try:
-        # ===== IPTV USER/PASS =====
-        if "get.php" in url:
-            base = url.split("/get.php")[0]
-            user = url.split("username=")[1].split("&")[0]
-            password = url.split("password=")[1].split("&")[0]
-
-            api = f"{base}/player_api.php?username={user}&password={password}"
-
-            r = requests.get(api, timeout=10)
-            data = r.json()
-
-            info = data.get("user_info", {})
-            server = data.get("server_info", {})
-
-            if info.get("auth") == 1:
-                return {
-                    "estado": "OK",
-                    "exp": format_fecha(info.get("exp_date")),
-                    "canales": 0
-                }
-            else:
-                return {"estado": "INVALID", "exp": "N/A", "canales": 0}
-
-        # ===== LISTA PUBLICA =====
-        else:
-            r = requests.get(url, timeout=10)
-
-            if r.status_code == 200 and "#EXTM3U" in r.text:
-                canales = r.text.count("#EXTINF")
-                return {
-                    "estado": "OK",
-                    "exp": "N/A",
-                    "canales": canales
-                }
-
-            return {"estado": "INVALID", "exp": "N/A", "canales": 0}
-
-    except:
-        return {"estado": "ERROR", "exp": "N/A", "canales": 0}
-
-# ===== HOME =====
+# ===== WEB =====
 @app.route("/")
 def home():
-    if not auth():
-        return redirect("/login")
-
     db = get_db()
-    listas = db.execute("SELECT * FROM listas").fetchall()
+    data = db.execute("SELECT * FROM urls").fetchall()
+    return render_template("index.html", data=data)
 
-    total = len(listas)
-    ok = len([l for l in listas if l[2] == "OK"])
-    bad = len([l for l in listas if l[2] == "INVALID"])
-
-    return render_template("index.html", listas=listas, total=total, ok=ok, bad=bad)
-
-# ===== AÑADIR =====
 @app.route("/add", methods=["POST"])
 def add():
-    if not auth():
-        return jsonify({"error":"login"})
-
     urls = request.json["urls"].split("\n")
     db = get_db()
 
-    for url in urls:
-        url = url.strip()
-        if url:
+    for u in urls:
+        u = u.strip()
+        if u:
             try:
-                db.execute("INSERT INTO listas (url,estado) VALUES (?,?)",(url,"NEW"))
+                db.execute("INSERT INTO urls (url,status) VALUES (?,?)",(u,"NEW"))
             except:
                 pass
 
     db.commit()
     return jsonify({"ok":True})
 
-# ===== SCAN =====
 @app.route("/scan")
 def scan():
-    if not auth():
-        return jsonify({"error":"login"})
-
     db = get_db()
-    listas = db.execute("SELECT * FROM listas").fetchall()
+    urls = db.execute("SELECT * FROM urls").fetchall()[:MAX_SCAN]
 
-    for l in listas:
-        resultado = verificar(l[1])
+    for u in urls:
+        status, t = check_url(u[1])
+        time.sleep(DELAY)
 
         db.execute("""
-        UPDATE listas 
-        SET estado=?, exp=?, canales=?, ultima_revision=? 
+        UPDATE urls 
+        SET status=?, response_time=?, last_check=? 
         WHERE id=?
-        """,
-        (
-            resultado["estado"],
-            resultado["exp"],
-            resultado["canales"],
-            datetime.now().strftime("%d/%m/%Y %H:%M"),
-            l[0]
-        ))
+        """,(status, t, datetime.now().strftime("%H:%M:%S"), u[0]))
 
     db.commit()
     return jsonify({"ok":True})
 
-# ===== EXPORT =====
 @app.route("/export")
 def export():
     db = get_db()
-    listas = db.execute("SELECT * FROM listas WHERE estado='OK'").fetchall()
+    urls = db.execute("SELECT * FROM urls WHERE status='ONLINE'").fetchall()
 
-    with open("validas.txt","w",encoding="utf-8") as f:
-        for l in listas:
-            f.write(f"""URL: {l[1]}
-EXP: {l[3]}
-CANALES: {l[4]}
+    with open("online.txt","w") as f:
+        for u in urls:
+            f.write(f"{u[1]} | {u[2]} | {u[3]}s\n")
 
-""")
+    return send_file("online.txt", as_attachment=True)
 
-    return send_file("validas.txt", as_attachment=True)
+# ===== TELEGRAM BOT =====
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 Bot activo\n\nComandos:\n/add URL\n/scan\n/status")
+
+async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("⚠️ Usa: /add https://ejemplo.com")
+        return
+
+    url = context.args[0]
+    db = get_db()
+
+    try:
+        db.execute("INSERT INTO urls (url,status) VALUES (?,?)",(url,"NEW"))
+        db.commit()
+        await update.message.reply_text("✅ URL añadida")
+    except:
+        await update.message.reply_text("⚠️ Ya existe")
+
+async def scan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ Escaneando...")
+
+    db = get_db()
+    urls = db.execute("SELECT * FROM urls").fetchall()[:MAX_SCAN]
+
+    for u in urls:
+        status, t = check_url(u[1])
+        time.sleep(DELAY)
+
+        db.execute("""
+        UPDATE urls 
+        SET status=?, response_time=?, last_check=? 
+        WHERE id=?
+        """,(status, t, datetime.now().strftime("%H:%M:%S"), u[0]))
+
+    db.commit()
+
+    await update.message.reply_text("✅ Escaneo terminado")
+
+async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    db = get_db()
+    urls = db.execute("SELECT * FROM urls").fetchall()
+
+    msg = "📊 Estado:\n\n"
+    for u in urls[:10]:
+        msg += f"{u[1]} → {u[2]}\n"
+
+    await update.message.reply_text(msg)
+
+def run_bot():
+    bot = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    bot.add_handler(CommandHandler("start", start))
+    bot.add_handler(CommandHandler("add", add_cmd))
+    bot.add_handler(CommandHandler("scan", scan_cmd))
+    bot.add_handler(CommandHandler("status", status_cmd))
+
+    bot.run_polling()
 
 # ===== RUN =====
 if __name__ == "__main__":
-    app.run()
+    Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=5000)
