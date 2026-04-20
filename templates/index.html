@@ -3,41 +3,17 @@
 <head>
 <title>IPTV PRO</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body{
-background:#0d0d0d;
-color:white;
-font-family:Arial;
-text-align:center;
-}
-
-textarea{
-width:90%;
-height:150px;
-background:#1a1a1a;
-color:white;
-border:1px solid #333;
-}
-
-button{
-padding:10px;
-margin:5px;
-background:#00ff88;
-border:none;
-cursor:pointer;
-}
-
-.ok{color:#00ff88;}
-.bad{color:#ff4d4d;}
-.err{color:#ffaa00;}
-
-.card{
-background:#1a1a1a;
-padding:10px;
-margin:10px;
-border-radius:10px;
-text-align:left;
-}
+body{background:#0d0d0d;color:white;font-family:Arial;text-align:center;}
+textarea{width:90%;height:150px;background:#1a1a1a;color:white;}
+button{padding:10px;margin:5px;background:#00ff88;border:none;}
+.card{background:#1a1a1a;padding:10px;margin:10px;border-radius:10px;text-align:left;}
+.ok{border-left:5px solid #00ff88;}
+.bad{border-left:5px solid red;}
+.err{border-left:5px solid orange;}
+.proceso{color:yellow;}
 </style>
 
 </head>
@@ -46,68 +22,91 @@ text-align:left;
 
 <h1>🔥 IPTV PANEL PRO</h1>
 
-<textarea id="listas" placeholder="Pega listas aquí"></textarea><br><br>
+<textarea id="listas"></textarea><br><br>
 
 <input type="file" id="fileInput">
 <button onclick="cargarArchivo()">Cargar TXT</button><br><br>
 
 <button onclick="check()">Verificar</button>
-<button onclick="soloOK()">Solo válidas</button>
-<button onclick="exportar()">Exportar válidas</button>
+<button onclick="autoScan()">Auto Scan</button>
+<button onclick="exportar()">Exportar HIT</button>
 
-<div id="stats"></div>
+<canvas id="grafica" width="300" height="150"></canvas>
 
-<h2>Resultados</h2>
 <div id="res"></div>
 
 <script>
 
-let globalData = [];
+let globalData=[];
+let scanning=false;
 
-function check(){
-let texto = document.getElementById("listas").value;
+// VERIFICACIÓN CON ANIMACIÓN
+async function check(){
+let lineas=document.getElementById("listas").value.split("\n");
 
-fetch("/check",{
+let resDiv=document.getElementById("res");
+resDiv.innerHTML="";
+
+for(let l of lineas){
+
+if(!l.includes("get.php")) continue;
+
+resDiv.innerHTML += `<div class="proceso">⏳ Procesando: ${l}</div>`;
+
+let r=await fetch("/check",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({listas:texto})
-})
-.then(r=>r.json())
-.then(data=>{
-globalData=data;
-mostrar(data);
+body:JSON.stringify({listas:l})
 });
+
+let data=await r.json();
+globalData.push(data[0]);
+
+mostrar();
+}
 }
 
-function mostrar(data){
-let ok=0, bad=0, err=0;
+// MOSTRAR RESULTADOS + GRÁFICA
+function mostrar(){
+let ok=0,bad=0,err=0;
 let html="";
 
-data.forEach(x=>{
+globalData.forEach(x=>{
 if(x.estado=="OK"){
 ok++;
-html += `<div class="card ok">✅ ${x.user} | ${x.pass}</div>`;
+html+=`<div class="card ok">👑 ${x.user} | ${x.pass}</div>`;
 }
-else if(x.estado=="BAD"){
-bad++;
-html += `<div class="card bad">❌ ${x.user}</div>`;
-}
-else{
-err++;
-html += `<div class="card err">⚠️ ERROR</div>`;
-}
+else if(x.estado=="BAD"){bad++;}
+else{err++;}
 });
 
-document.getElementById("stats").innerHTML =
-`✅ ${ok} | ❌ ${bad} | ⚠️ ${err}`;
+document.getElementById("res").innerHTML=html;
 
-document.getElementById("res").innerHTML = html;
+grafica(ok,bad,err);
 }
 
-function soloOK(){
-mostrar(globalData.filter(x=>x.estado=="OK"));
+// GRÁFICA
+function grafica(ok,bad,err){
+new Chart(document.getElementById("grafica"),{
+type:"doughnut",
+data:{
+labels:["OK","BAD","ERROR"],
+datasets:[{
+data:[ok,bad,err]
+}]
+}
+});
 }
 
+// AUTO SCAN
+function autoScan(){
+scanning=true;
+setInterval(()=>{
+if(scanning) check();
+},5000);
+}
+
+// EXPORTAR
 function exportar(){
 fetch("/export",{
 method:"POST",
@@ -123,12 +122,11 @@ a.click();
 });
 }
 
+// CARGAR TXT
 function cargarArchivo(){
 let file=document.getElementById("fileInput").files[0];
-if(!file){ alert("Selecciona archivo"); return; }
-
 let reader=new FileReader();
-reader.onload=function(e){
+reader.onload=e=>{
 document.getElementById("listas").value=e.target.result;
 };
 reader.readAsText(file);
