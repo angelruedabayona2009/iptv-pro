@@ -1,119 +1,125 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>IPTV PRO</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>IPTV PANEL PRO</title>
 
 <style>
-body{background:#0d0d0d;color:white;font-family:Arial;text-align:center;}
-textarea{width:90%;height:150px;background:#1a1a1a;color:white;}
-button{padding:10px;margin:5px;background:#00ff88;border:none;}
-.card{background:#1a1a1a;padding:10px;margin:10px;border-radius:10px;text-align:left;}
-.ok{border-left:5px solid #00ff88;}
+body{
+background:#0f172a;
+color:#e2e8f0;
+font-family:Arial;
+text-align:center;
+}
+
+h1{
+color:#00ffcc;
+}
+
+textarea{
+width:90%;
+height:150px;
+background:#020617;
+color:#00ffcc;
+border:1px solid #334155;
+}
+
+button{
+padding:10px;
+margin:5px;
+background:#00ffcc;
+border:none;
+cursor:pointer;
+font-weight:bold;
+}
+
+.card{
+background:#020617;
+padding:12px;
+margin:10px;
+border-radius:10px;
+text-align:left;
+border-left:5px solid #00ffcc;
+box-shadow:0 0 10px #000;
+}
+
 .bad{border-left:5px solid red;}
-.err{border-left:5px solid orange;}
-.proceso{color:yellow;}
+.proc{color:yellow;}
 </style>
 
 </head>
 
 <body>
 
-<h1>🔥 IPTV PANEL PRO</h1>
+<h1>🔥 IPTV PANEL PRO MAX</h1>
 
-<textarea id="listas"></textarea><br><br>
+<textarea id="listas" placeholder="Pega tus listas aquí..."></textarea><br><br>
 
 <input type="file" id="fileInput">
 <button onclick="cargarArchivo()">Cargar TXT</button><br><br>
 
-<button onclick="check()">Verificar</button>
-<button onclick="autoScan()">Auto Scan</button>
+<button onclick="verificar()">Verificar</button>
 <button onclick="exportar()">Exportar HIT</button>
 
-<canvas id="grafica" width="300" height="150"></canvas>
-
+<h2>Resultados</h2>
 <div id="res"></div>
 
 <script>
 
 let globalData=[];
-let scanning=false;
 
-// VERIFICACIÓN CON ANIMACIÓN
-async function check(){
-let lineas=document.getElementById("listas").value.split("\n");
+async function verificar(){
+let texto=document.getElementById("listas").value;
 
-let resDiv=document.getElementById("res");
-resDiv.innerHTML="";
-
-for(let l of lineas){
-
-if(!l.includes("get.php")) continue;
-
-resDiv.innerHTML += `<div class="proceso">⏳ Procesando: ${l}</div>`;
+document.getElementById("res").innerHTML="<div class='proc'>⏳ Verificando...</div>";
 
 let r=await fetch("/check",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({listas:l})
+body:JSON.stringify({listas:texto})
 });
 
 let data=await r.json();
-globalData.push(data[0]);
+globalData=data;
 
-mostrar();
-}
+mostrar(data);
 }
 
-// MOSTRAR RESULTADOS + GRÁFICA
-function mostrar(){
-let ok=0,bad=0,err=0;
+function mostrar(data){
 let html="";
 
-globalData.forEach(x=>{
+data.forEach(x=>{
 if(x.estado=="OK"){
-ok++;
-html+=`<div class="card ok">👑 ${x.user} | ${x.pass}</div>`;
+html+=`
+<div class="card">
+╭───✦ HIT HUNTER<br>
+├● 👑 USER : ${x.user}<br>
+├● 🔐 PASS : ${x.pass}<br>
+├● ✅ STATUS : ${x.status}<br>
+├● 📶 ACTIVE : ${x.active}<br>
+├● 📡 MAX : ${x.max}<br>
+├● ⏰ CREATED : ${x.created}<br>
+├● 📅 EXP : ${x.exp}<br>
+├● 🌐 SERVER : ${x.server}<br>
+├● 🕰️ TZ : ${x.tz}<br>
+╰───✦<br>
+🌐 ${x.m3u}
+</div>`;
 }
-else if(x.estado=="BAD"){bad++;}
-else{err++;}
+else{
+html+=`<div class="card bad">❌ FALLÓ</div>`;
+}
 });
 
 document.getElementById("res").innerHTML=html;
-
-grafica(ok,bad,err);
 }
 
-// GRÁFICA
-function grafica(ok,bad,err){
-new Chart(document.getElementById("grafica"),{
-type:"doughnut",
-data:{
-labels:["OK","BAD","ERROR"],
-datasets:[{
-data:[ok,bad,err]
-}]
-}
-});
-}
-
-// AUTO SCAN
-function autoScan(){
-scanning=true;
-setInterval(()=>{
-if(scanning) check();
-},5000);
-}
-
-// EXPORTAR
 function exportar(){
 fetch("/export",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({data:globalData})
 })
-.then(res=>res.blob())
+.then(r=>r.blob())
 .then(blob=>{
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -122,7 +128,6 @@ a.click();
 });
 }
 
-// CARGAR TXT
 function cargarArchivo(){
 let file=document.getElementById("fileInput").files[0];
 let reader=new FileReader();
