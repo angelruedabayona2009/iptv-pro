@@ -1,142 +1,41 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>IPTV PANEL PRO</title>
+<body style="background:#0f172a;color:white;text-align:center">
 
-<style>
-body{
-background:#0f172a;
-color:#e2e8f0;
-font-family:Arial;
-text-align:center;
-}
+<h1>IPTV PANEL PRO</h1>
 
-h1{
-color:#00ffcc;
-}
+<h3>Total: {{total}} | OK: {{ok}} | INVALID: {{bad}}</h3>
 
-textarea{
-width:90%;
-height:150px;
-background:#020617;
-color:#00ffcc;
-border:1px solid #334155;
-}
+<textarea id="urls" style="width:90%;height:100px;"></textarea><br><br>
 
-button{
-padding:10px;
-margin:5px;
-background:#00ffcc;
-border:none;
-cursor:pointer;
-font-weight:bold;
-}
+<button onclick="add()">Añadir</button>
+<button onclick="scan()">Escanear</button>
+<a href="/export"><button>Exportar</button></a>
 
-.card{
-background:#020617;
-padding:12px;
-margin:10px;
-border-radius:10px;
-text-align:left;
-border-left:5px solid #00ffcc;
-box-shadow:0 0 10px #000;
-}
+<h2>Listas</h2>
 
-.bad{border-left:5px solid red;}
-.proc{color:yellow;}
-</style>
-
-</head>
-
-<body>
-
-<h1>🔥 IPTV PANEL PRO MAX</h1>
-
-<textarea id="listas" placeholder="Pega tus listas aquí..."></textarea><br><br>
-
-<input type="file" id="fileInput">
-<button onclick="cargarArchivo()">Cargar TXT</button><br><br>
-
-<button onclick="verificar()">Verificar</button>
-<button onclick="exportar()">Exportar HIT</button>
-
-<h2>Resultados</h2>
-<div id="res"></div>
+{% for l in listas %}
+<div style="margin:10px;padding:10px;background:#020617">
+{{l[1]}}<br>
+Estado: {{l[2]}}<br>
+Exp: {{l[3]}}<br>
+Canales: {{l[4]}}<br>
+{{l[5]}}
+</div>
+{% endfor %}
 
 <script>
-
-let globalData=[];
-
-async function verificar(){
-let texto=document.getElementById("listas").value;
-
-document.getElementById("res").innerHTML="<div class='proc'>⏳ Verificando...</div>";
-
-let r=await fetch("/check",{
+function add(){
+fetch("/add",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({listas:texto})
-});
-
-let data=await r.json();
-globalData=data;
-
-mostrar(data);
+body:JSON.stringify({urls:document.getElementById("urls").value})
+}).then(()=>location.reload());
 }
 
-function mostrar(data){
-let html="";
-
-data.forEach(x=>{
-if(x.estado=="OK"){
-html+=`
-<div class="card">
-╭───✦ HIT HUNTER<br>
-├● 👑 USER : ${x.user}<br>
-├● 🔐 PASS : ${x.pass}<br>
-├● ✅ STATUS : ${x.status}<br>
-├● 📶 ACTIVE : ${x.active}<br>
-├● 📡 MAX : ${x.max}<br>
-├● ⏰ CREATED : ${x.created}<br>
-├● 📅 EXP : ${x.exp}<br>
-├● 🌐 SERVER : ${x.server}<br>
-├● 🕰️ TZ : ${x.tz}<br>
-╰───✦<br>
-🌐 ${x.m3u}
-</div>`;
+function scan(){
+fetch("/scan").then(()=>location.reload());
 }
-else{
-html+=`<div class="card bad">❌ FALLÓ</div>`;
-}
-});
-
-document.getElementById("res").innerHTML=html;
-}
-
-function exportar(){
-fetch("/export",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({data:globalData})
-})
-.then(r=>r.blob())
-.then(blob=>{
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="hits.txt";
-a.click();
-});
-}
-
-function cargarArchivo(){
-let file=document.getElementById("fileInput").files[0];
-let reader=new FileReader();
-reader.onload=e=>{
-document.getElementById("listas").value=e.target.result;
-};
-reader.readAsText(file);
-}
-
 </script>
 
 </body>
