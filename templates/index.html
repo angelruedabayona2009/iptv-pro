@@ -2,7 +2,7 @@
 <html>
 <head>
 <title>IPTV PRO</title>
-<style>
+
 <style>
 body{
 background:#0d0d0d;
@@ -36,80 +36,41 @@ background:#1a1a1a;
 padding:10px;
 margin:10px;
 border-radius:10px;
-border-left:5px solid #00ff88;
 text-align:left;
 }
-
-.badCard{border-left:5px solid red;}
-.errCard{border-left:5px solid orange;}
-
-.stats{
-margin:10px;
-font-size:18px;
-}
-
-.procesando{
-background:#222;
-color:yellow;
-}
 </style>
 
-textarea{
-<br><br>
-<input type="file" id="fileInput">
-<button onclick="cargarArchivo()">Cargar TXT</button>  
-width:90%;
-height:150px;
-background:#1a1a1a;
-color:white;
-border:1px solid #333;
-}
-
-button{
-padding:10px;
-margin:5px;
-background:#00ff88;
-border:none;
-cursor:pointer;
-}
-
-.ok{color:lime;}
-.bad{color:red;}
-.err{color:orange;}
-
-.card{
-background:#1a1a1a;
-padding:10px;
-margin:10px;
-border-radius:10px;
-}
-</style>
 </head>
 
 <body>
 
 <h1>🔥 IPTV PANEL PRO</h1>
 
-<textarea id="listas" placeholder="Pega listas aquí"></textarea><br>
+<textarea id="listas" placeholder="Pega listas aquí"></textarea><br><br>
+
+<input type="file" id="fileInput">
+<button onclick="cargarArchivo()">Cargar TXT</button><br><br>
 
 <button onclick="check()">Verificar</button>
 <button onclick="soloOK()">Solo válidas</button>
 <button onclick="exportar()">Exportar válidas</button>
-<div id="stats" class="stats"></div>
-  <h2>Resultados</h2>
+
+<div id="stats"></div>
+
+<h2>Resultados</h2>
 <div id="res"></div>
 
-<h2>🔥 HIT HUNTER</h2>
-<div id="hit"></div>
-
 <script>
-let globalData=[];
+
+let globalData = [];
 
 function check(){
+let texto = document.getElementById("listas").value;
+
 fetch("/check",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({listas:document.getElementById("listas").value})
+body:JSON.stringify({listas:texto})
 })
 .then(r=>r.json())
 .then(data=>{
@@ -120,128 +81,60 @@ mostrar(data);
 
 function mostrar(data){
 let ok=0, bad=0, err=0;
-let htmlOK="", htmlBAD="", htmlERR="";
+let html="";
 
 data.forEach(x=>{
-
 if(x.estado=="OK"){
 ok++;
-htmlOK += `
-<div class="card ok">
-👑 USER: ${x.user}<br>
-🔐 PASS: ${x.pass}<br>
-🌐 SERVER: ${x.server}<br>
-📅 EXP: ${formatFecha(x.exp_date)}
-</div>`;
+html += `<div class="card ok">✅ ${x.user} | ${x.pass}</div>`;
 }
-
 else if(x.estado=="BAD"){
 bad++;
-htmlBAD += `<div class="card badCard">❌ ${x.user}</div>`;
+html += `<div class="card bad">❌ ${x.user}</div>`;
 }
-
 else{
 err++;
-htmlERR += `<div class="card errCard">⚠️ ERROR</div>`;
+html += `<div class="card err">⚠️ ERROR</div>`;
 }
-
 });
 
 document.getElementById("stats").innerHTML =
 `✅ ${ok} | ❌ ${bad} | ⚠️ ${err}`;
 
-document.getElementById("res").innerHTML = `
-<h2>✅ VÁLIDAS</h2>${htmlOK}
-<h2>❌ INVÁLIDAS</h2>${htmlBAD}
-<h2>⚠️ ERRORES</h2>${htmlERR}
-`;
+document.getElementById("res").innerHTML = html;
 }
-function formatFecha(timestamp){
-if(!timestamp) return "N/A";
-let d = new Date(timestamp * 1000);
-return d.toLocaleDateString();
-}
+
 function soloOK(){
-function mostrar(data){
-let htmlOK="";
-let htmlBAD="";
-let htmlERR="";
-
-data.forEach(x=>{
-
-if(x.estado=="OK"){
-htmlOK += `
-<div class="card ok">
-👑 USER: ${x.user}<br>
-🔐 PASS: ${x.pass}<br>
-🌐 SERVER: ${x.server}<br>
-✅ STATUS: ${x.status}<br>
-📶 ACTIVE: ${x.active_cons}<br>
-📡 MAX: ${x.max_connections}<br>
-📅 EXP: ${formatFecha(x.exp_date)}<br>
-🕰️ TZ: ${x.timezone}
-</div>`;
+mostrar(globalData.filter(x=>x.estado=="OK"));
 }
 
-else if(x.estado=="BAD"){
-htmlBAD += `<div class="card bad">❌ BAD: ${x.user}</div>`;
-}
-
-else{
-htmlERR += `<div class="card err">⚠️ ERROR: ${x.user}</div>`;
-}
-
-});
-
-document.getElementById("res").innerHTML = `
-<h2>✅ VÁLIDAS</h2>${htmlOK}
-<h2>❌ INVÁLIDAS</h2>${htmlBAD}
-<h2>⚠️ ERRORES</h2>${htmlERR}
-`;
-}
-
-// HIT PANEL
-document.getElementById("hit").innerHTML = `
-<div class="card ok">
-👑 Usuario: ser682mun<br>
-🔐 Pass: 5w49evr21<br>
-🌐 Server: http://superlatino.online<br>
-✅ Estado: Active<br>
-📅 Exp: 24/05/2026<br>
-<a href="http://superlatino.online/get.php?username=ser682mun&password=5w49evr21&type=m3u_plus" target="_blank">📺 Ver lista</a>
-</div>
-`;
-
-</script>
 function exportar(){
 fetch("/export",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({data:globalData})
 })
-.then(res => res.blob())
-.then(blob => {
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "iptv_validas.csv";
+.then(res=>res.blob())
+.then(blob=>{
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="hits.txt";
 a.click();
 });
-} 
-function cargarArchivo(){
-let file = document.getElementById("fileInput").files[0];
-
-if(!file){
-alert("Selecciona un archivo");
-return;
 }
 
-let reader = new FileReader();
+function cargarArchivo(){
+let file=document.getElementById("fileInput").files[0];
+if(!file){ alert("Selecciona archivo"); return; }
 
-reader.onload = function(e){
-document.getElementById("listas").value = e.target.result;
+let reader=new FileReader();
+reader.onload=function(e){
+document.getElementById("listas").value=e.target.result;
 };
-
 reader.readAsText(file);
 }
+
+</script>
+
 </body>
 </html>
